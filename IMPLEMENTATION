@@ -1,0 +1,175 @@
+Some implementation notes
+-------------------------
+
+Zounds is structured as a framework for implementing and manipulating
+different kinds of cellular automata and other dynamical systems.  The
+details of the specific systems are confined to per-system subdirectories,
+and in fact each system gets its own binary built.  The main reason I
+haven't tried to create a single binary with switchable systems is that
+different systems use different-sized data, and the common algorithms all
+assume they have a fixed-size data types. It would require doing something
+akin having multiple template instantiations for most of the code, and I
+didn't feel like doing that.
+
+There is a concept of a "core algorithm", which refers to the details of
+the specific system being implemented.  A core algorithm needs to implement
+all the elements of the interface in "core.h".  It also needs to define the
+size of two data types: a box vector ("boxvector" in OpenCL, "cl_boxvector"
+in C), and a data vector ("datavec" in OpenCL, "cl_datavec" in C).  A box
+vector is the data type used for a box blur, and is a vector of
+BOX_DIMENSIONS float's.  A data vector is the data type used to represent a
+pixel's worth of data, and is a vector of DATA_DIMENSIONS float's.  The
+values of BOX_DIMENSIONS and DATA_DIMENSIONS must be #define'd by the core
+algorithm in the file "vecsizes.h" within the core algorithm directory.
+These #define's can have values between 1 and 4 inclusive.
+
+Most of the computationally intensive work is implemented in OpenCL. Each
+pixel of the image needs to execute the same algorithm at each timestep, so
+the work is embarrassingly parallel, and is naturally suited to running on
+a GPU. OpenCL provides a library for interfacing with the GPU, as well as a
+C-like programming language for writing computation kernels. It has
+backends for many different GPUs, so the kernels can be written once and
+run on different systems with minimal tuning.
+
+There is a little bit of code for reading an image from a connected video
+camera.  It uses OpenCV to do the actual work of this.  OpenCV has
+explicitly deprecated the C-language interfaces I'm using, and has removed
+them from version 4, but OpenCV 3 still works just fine.  All of the code
+for interacting with the camera is in camera.c, so it could be replaced
+with something more modern if need be.
+
+Internal image formats
+----------------------
+
+Different parts of the code use different image formats, sometimes to
+represent the same data. This is somewhat unfortunate, but it still seems
+like the best approach. Some of the places where different formats are used
+include:
+
+- image.c deals with loading and saving images.  It represents images as
+  arrays of four bytes, valued from 0-255 inclusive. There is one byte for
+  each of RGBA, though A is unused. This is used as a common interchange
+  format between the various image sources, including PPM and camera.
+
+- ppm.c deals with loading and saving PPM files.  It represents images as
+  arrays of three bytes, valued from 0-255 inclusive. This maps directly
+  onto the data in a PPM file.
+
+- camera.c handles interacting with a video camera.  Many cameras return
+  their results as arrays of three bytes, but in BGR order rather than RGB,
+  so this file handles that translation.
+
+- window.c keeps track of the actual image that gets displayed to the
+  screen.  This is created either as an OpenGL texture or as a regular
+  OpenCL image2d_t with four unsigned bytes per pixel (RGBA). In either
+  case, OpenCL code treats this as an image2d_t, which should be read from
+  and written to using read_imagef()/write_imagef().
+
+- datasrc.c keeps track of the master data representation of the image.
+  This is represented as an OpenCL image2d_t with one datavec per pixel.
+  Many other parts of the code (e.g. mouse stroke handling, image skipping,
+  image interpolation) use this representation, since it lives on the GPU,
+  it maintains higher precision than the one-byte-per-channel image
+  formats, and it doesn't rely on the details of the core algorithm.  The
+  core algorithm's "render" and "unrender" routines transform this
+  representation to and from the displayed image representation mentioned
+  above.
+
+- Each core algorithm represents the image's data in whatever way is most
+  conducive to doing its calculations.  For MSTP, this consists of a pair
+  of OpenCL buffers with one datavec per pixel, along with an additional
+  set of OpenCL buffers for temporary storage while performing box blurs.
+  The core algorithm's "import" and "export" routines transform the master
+  data representation into this internal representation.
+
+Performance
+-----------
+
+Dynamical systems can be very computationally expensive. A fundamental
+operation in many forms of cellular automata is finding the average value
+of all pixels in an N-pixel radius around a central pixel. Systems such as
+MSTP use values of N that are non-trivial fractions of the total image
+size, which means a naive implementation would take O(N^4) time per frame.
+When running in full HD, this would mean several trillion operations per
+frame, which would be much too slow on modern GPUs.
+
+The most basic speedup comes from using a decomposable blur operation, such
+as a Gaussian blur, rather than taking the exact average of all the pixels
+in some radius around a central pixel. This essentially reduces the cost
+per frame from O(N^4) to O(N^3). This is a big step forward, but this is an
+important enough operation that it warrants a lot of effort to speed it up.
+
+This program uses a box blur for the operation of approximating average
+pixel value in a given radius. It is decomposable, like the Gaussian blur,
+but it's even simpler in operation, and that makes it amenable to further
+optimization. In practice, running a box blur twice generates a result that
+looks about as good as running a Gaussian blur once, and it's much faster.
+(The number of box blur passes can be tuned dynamically; running with just
+a single pass generates some distinctive visual effects, but I don't like
+it as well as running with two passes.)
+
+The performance of this program is almost entirely determined by how fast
+the box blur operates. A fair bit of effort has been put into making it go
+fast, but it's still less automatic than I might wish.
+
+The file "boxparams.c" has routines that control which box blur operation
+is used when. It's been configured using data from the graphics cards I
+happen to have access to, but that's a very small set. You can run a
+performance test for box blur on your own graphics card, using the "-B"
+command line option, and it will tell you which box blur modes work best on
+your hardware. Note that the results depend in non-obvious ways on the size
+of the image, not just the hardware being used.
+
+The current values are configured based on running the box blur test for
+full HD (1920x1080) resolution + a vector of 4 floats. This corresponds to
+the behavior used by tc (Turing clouds).  The resulting performance of tc
+is as follows: (measured using the arguments "-vA -DP -G -w 1920 -h 1080")
+
+  NVidia 1060:		 34.35 min,  34.56 avg	(20 fps, *almost* 30)
+  AMD Radeon 570:	 60.84 min,  63.32 avg	(15 fps)
+  Intel Iris 550:	192.41 min, 211.90 avg	(4-5 fps)
+  Intel UHD 630:	294.32 min, 295.48 avg	(3 fps)
+
+If I just run it on my laptop (a 2016 MacBook Pro) at its native resolution
+of 1680x1050, using the same metric as above, I get about 6 fps.  That's
+not as fast as I'd like for presenting it to others, but it's plenty fast
+for experimenting on my own.
+
+A brief tour of the source, in roughly top-down order
+-----------------------------------------------------
+
+In the directory "common":
+
+- main.c:	parses command line arguments.
+- window.c:	handles the main graphics window.
+- module.c:	initializes and cleans up each subsystem.
+- keyboard.c:	uses keyboard input to control parameters.
+- mouse.c:	uses mouse input to generate strokes in the image.
+- texture.c:	displays an image to the screen using OpenGL.
+- datasrc.c:	multiplexes between multiple data sources.
+- opencl.c:	wrappers around OpenCL functions.
+- box.c:	code for performing a box blur.
+- boxparams.c:	parameters for tuning performance of box blur.
+- image.c:	loads and stores images from various places.
+- heatmap.c:	generates a heatmap of the data.
+- basis.c:	generates basis vectors for projecting the heatmap.
+- histogram.c:	generates a 1-D histogram of the data.
+- stroke.c:	generates image "strokes" akin to ink marbling.
+- interp.c:	interpolates between successive images.
+- skip.c:	skips flickering images.
+- ppm.c:	PPM file I/O.
+- template.c:	utilities for naming files.
+- param.c:	mechanism for tuning parameters.
+- randbj.c:	rand48() implementation.
+- debug.c:	controls debug printing and general text output.
+- osdep.c:	miscellaneous OS-dependent routines.
+- camera.c:	routines for interfacing with a video camera.
+- util.c:	memory allocation and free routines.
+- loadfix.c:	workaround for a GLUT bug in MacOS 10.14.
+
+Other subdirectories for individual core algorithms:
+
+- tc/:		the core algorithm for Turing clouds.
+- mstp/:	the core algorithm for Multi-Scale Turing Patterns.
+- life/:	the core algorithm for the Game of Life.
+- map/:		a trivial core algorithm for playing with other features.

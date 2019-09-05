@@ -1,0 +1,16 @@
+#!/bin/sh
+
+if [ -z "$CC" -o -z "$CL" ] ; then
+	echo "\$CC and \$CL must be set to run this script." >&2
+	exit 1
+fi
+
+echo 'static const char Kernel_source[] = '
+(
+ 	cat kernel.cl
+	for a in ${CL} ; do
+		echo "#include \"$a\""
+	done
+) | ${CC} -D__OPENCL_VERSION__ -I. -I../common -E - |
+  sed 's/"/\\"/g;s/.*/"&\\n"/'
+echo ';'

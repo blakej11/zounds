@@ -1,0 +1,102 @@
+#
+# This Makefile depends on GNU make.
+#
+
+###
+### The one set of compile-time tunables: whether to support capturing input
+### from a camera via the OpenCV framework.  To disable it, comment out the
+### OPENCV_SUPPORT line.
+###
+OPENCV_SUPPORT = true
+OPENCV_LDFLAGS = 
+OPENCV_LDLIBS = -lopencv_videoio -lopencv_core
+
+# ----------------------------------------------------------------------
+
+CC	= gcc
+CFLAGS	= -O3 -m64 -I. -I../common
+OS	:= $(shell uname -s)
+
+CFLAGS	+= -Wno-deprecated-declarations
+LOADFIX	= /bin/true
+RM_LOADFIX = /bin/true
+
+ifeq ($(OS), Darwin)
+LDLIBS	= -framework OpenCL -framework OpenGL -framework GLUT
+LOADFIX	= ../loadfix
+RM_LOADFIX = /bin/rm -f $(LOADFIX)
+endif
+
+ifeq ($(OS), Linux)
+LDLIBS	= -lOpenCL -lGL -lglut -lm
+CFLAGS	+= -Wno-unused-result
+endif
+
+ifeq ($(OPENCV_SUPPORT), true)
+CFLAGS	+= -DOPENCV_SUPPORT
+LDFLAGS	+= $(OPENCV_LDFLAGS)
+LDLIBS	+= $(OPENCV_LDLIBS)
+endif
+
+EXEC	= zounds
+
+OBJS	= basis.o	\
+	  box.o		\
+	  boxparams.o	\
+	  camera.o	\
+	  datasrc.o	\
+	  debug.o	\
+	  heatmap.o	\
+	  histogram.o	\
+	  image.o	\
+	  interp.o	\
+	  keyboard.o	\
+	  main.o	\
+	  module.o	\
+	  mouse.o	\
+	  opencl.o	\
+	  osdep.o	\
+	  param.o	\
+	  ppm.o		\
+	  randbj.o	\
+	  skip.o	\
+	  stroke.o	\
+	  template.o	\
+	  texture.o	\
+	  util.o	\
+	  window.o	\
+	  $(CORE_OBJS)
+
+CLFILES = box.cl	\
+	  color.cl	\
+	  heatmap.cl	\
+	  interp.cl	\
+	  kernel.cl	\
+	  skip.cl	\
+	  stroke.cl	\
+	  subblock.cl
+
+$(EXEC): $(OBJS) $(CLFILES) $(CORE_CLFILES) $(LOADFIX)
+	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS) $(LDLIBS)
+	$(LOADFIX) $@
+
+kernelsrc.c: $(CLFILES) $(CORE_CLFILES)
+	$(shell CC=$(CC) CL="$(CORE_CLFILES)" ../make-kernelsrc > kernelsrc.c)
+
+opencl.o: kernelsrc.c
+
+../loadfix: ../loadfix.c
+	$(CC) $(CFLAGS) -o $@ ../loadfix.c
+
+$(CLFILES):
+	ln -s ../common/$@ $@
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $<
+
+%.o: ../common/%.c
+	$(CC) $(CFLAGS) -c $<
+
+clean:
+	rm -f $(OBJS) $(EXEC) $(CLFILES) *~ kernelsrc.c
+	$(RM_LOADFIX)

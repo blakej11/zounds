@@ -1,0 +1,49 @@
+Zounds: Zoo Of UNusual Dynamical Systems
+
+This is a program for visualizing and interacting with complex cellular
+automata and other dynamical systems.  It uses the GPU to improve the
+performance of the computationally intensive parts of taking a timestep and
+manipulating an image.  It can load and save images, initialize the system
+from a file or from the camera, dynamically change the parameters of the
+system, visualize the system in a few different ways, interact with the
+data directly via mouse movement, and filter the data to make smoother
+changes between images.
+
+The current version of Zounds implements three different systems:
+
+- Jonathan McCabe's Multi-Scale Turing Patterns ("MSTP")
+- My multi-color variant of MSTP, known as Turing clouds
+- John Conway's Game of Life
+
+My goal with this implementation was to create something that would perform
+as close to real-time as possible on a HD (1920x1080) display, and that
+wouldn't require physically touching a computer to interact with.  As a
+result, this is written as a desktop app rather than a Web trinket. It
+requires effort to get the full effect (see the note at the end of the file
+"USAGE"), but the results are worth it.
+
+------------------------------------------------------------------------
+
+To build Zounds, just run "make" in the main directory.  GNU make is assumed.
+
+I don't use fancier build frameworks, because this is a fairly simple C
+program with not too many dependencies.  It requires the OpenCL, OpenGL,
+and GLUT libraries.  If the OpenCV framework is installed, it can use that
+to read images from a camera.  If you need to configure where these
+libraries are found, edit Makefile.common.
+
+Each dynamical system is compiled into a separate binary. You can build an
+individual binary by running "make" in that system's subdirectory.
+
+I've tested this on MacOS (10.13 and 10.14) and Linux (Ubuntu 18.04.1 LTS).
+I'd welcome patches to get it to build elsewhere.
+
+------------------------------------------------------------------------
+
+More details about how to interact with Zounds are in the file USAGE.
+The file IMPLEMENTATION has some description about how it works.
+
+------------------------------------------------------------------------
+
+Bug reports, feature suggestions, comments, and questions are all welcome!
+Contact me (Blake Jones) at blakej@foo.net.
