@@ -36,6 +36,7 @@
 static void	key_v(void);
 static void	debug_help(void);
 static void	debug_toggle_all(void);
+static void	debug_toggle_cb(key_binding_type_t, unsigned char);
 
 /* ------------------------------------------------------------------ */
 
@@ -92,6 +93,15 @@ static void
 debug_preinit(void)
 {
 	key_register('v', KB_DEFAULT, "toggle verbose mode", key_v);
+
+	/*
+	 * As with 'q', the 'D' key isn't something the keypad has, but
+	 * it's nice to be able to do it if I plug in a real keyboard.
+	 */
+	key_register_cb_oneshot('D', KB_DEFAULT,
+	    "toggle debug area", debug_toggle_cb);
+	key_register_cb_oneshot('D', KB_KEYPAD,
+	    "toggle debug area", debug_toggle_cb);
 
 	debug_register_toggle('d', "debug", DB_DEBUG, NULL);
 	debug_register_toggle('*', "all areas", 0, debug_toggle_all);
@@ -158,10 +168,7 @@ debug_enabled(debug_area_t area)
 	return ((Debug.areas & area) != 0);
 }
 
-/*
- * Called to toggle debugging for the subsystem described by "key".
- */
-void
+static void
 debug_toggle(unsigned char key)
 {
 	debug_toggle_t	*const	dt = &Debug.toggles[key];
@@ -180,6 +187,18 @@ debug_toggle(unsigned char key)
 	} else {
 		warn("unknown debugging key \"%c\"\n", key);
 	}
+}
+
+/*
+ * Called to toggle debugging for the subsystem described by "key".
+ * We don't actually care what keyboard mode we're using here. Even if
+ * we're using the keypad, we want to be able to plug in a regular keyboard
+ * and use it for debugging.
+ */
+static void
+debug_toggle_cb(key_binding_type_t kb, unsigned char key)
+{
+	debug_toggle(key);
 }
 
 /*

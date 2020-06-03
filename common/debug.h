@@ -13,19 +13,20 @@
  */
 typedef enum {
 	DB_BOX		= 0x00000001,	/* box blur */
-	DB_CORE		= 0x00000002,	/* core algorithm */
-	DB_DEBUG	= 0x00000004,	/* debugging code */
-	DB_HEAT		= 0x00000008,	/* heatmap */
-	DB_HISTO	= 0x00000010,	/* text histogram */
-	DB_IMAGE	= 0x00000020,	/* image I/O */
-	DB_INTERP	= 0x00000040,	/* interpolation */
-	DB_MOUSE	= 0x00000080,	/* mouse */
-	DB_OPENCL	= 0x00000100,	/* OpenCL wrappers */
-	DB_PARAM	= 0x00000200,	/* parameter tracking */
-	DB_PERF		= 0x00000400,	/* performance */
-	DB_SKIP		= 0x00000800,	/* image skipping */
-	DB_STROKE	= 0x00001000,	/* stroke processing */
-	DB_WINDOW	= 0x00002000,	/* window handling */
+	DB_CAMERA	= 0x00000002,	/* camera */
+	DB_CORE		= 0x00000004,	/* core algorithm */
+	DB_DEBUG	= 0x00000008,	/* debugging code */
+	DB_HEAT		= 0x00000010,	/* heatmap */
+	DB_HISTO	= 0x00000020,	/* text histogram */
+	DB_IMAGE	= 0x00000040,	/* image I/O */
+	DB_INTERP	= 0x00000080,	/* interpolation */
+	DB_MOUSE	= 0x00000100,	/* mouse */
+	DB_OPENCL	= 0x00000200,	/* OpenCL wrappers */
+	DB_PARAM	= 0x00000400,	/* parameter tracking */
+	DB_PERF		= 0x00000800,	/* performance */
+	DB_SKIP		= 0x00001000,	/* image skipping */
+	DB_STROKE	= 0x00002000,	/* stroke processing */
+	DB_WINDOW	= 0x00004000,	/* window handling */
 } debug_area_t;
 
 /*
@@ -89,12 +90,6 @@ debug_register_toggle(unsigned char key,
  */
 extern bool
 debug_enabled(debug_area_t);
-
-/*
- * Toggles debugging for the subsystem described by "key".
- */
-extern void
-debug_toggle(unsigned char key);
 
 /* ------------------------------------------------------------------ */
 
