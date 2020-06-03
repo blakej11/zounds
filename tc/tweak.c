@@ -19,7 +19,33 @@
 /* ------------------------------------------------------------------ */
 
 /*
- * The tweakable parameters.
+ * The tweakable parameters, and their default values.
+ */
+static const param_init_t Param_values[] = {
+     /* min,     def,     max,  units,    freq,    rate,  abbr, name */
+	{ 2, NSCALES, NSCALES,      1, APF_LOW, APR_MED,  "NS", "nscales" },
+	// Number of scales to use.
+
+	{ 0,       4,       6,      1, APF_MED, APR_MED,  "SP", "speed" },
+	// log2(scale factor) for multiscale adj[]
+	// -1 = stop updates (still lets the heatmap spin)
+
+	{ 1,       2,       3,      1, APF_LOW, APR_LOW,  "NB", "nbox" },
+	// Number of box blur passes to do.
+
+#define	NADJ	(NADJTYPE - 1)
+	{ 0,       0,    NADJ,      1, APF_LOW, APR_HIGH, "AT", "adjtype" },
+	// Which array of adjustments to use.
+#undef	NADJ
+
+	{ 0,       0,     999,      1, APF_OFF, APR_HIGH, "RT", "rendertype" },
+	// Which style of rendering to use.
+};
+
+/* ------------------------------------------------------------------ */
+
+/*
+ * The parameter IDs, used for calling into the param subsystem.
  */
 static struct {
 	param_id_t	nscales;
@@ -28,8 +54,6 @@ static struct {
 	param_id_t	adjtype;
 	param_id_t	rendertype;
 } Params;
-
-/* ------------------------------------------------------------------ */
 
 static void
 key_preset_5_cb(void *arg)
@@ -52,74 +76,30 @@ key_preset_6_cb(void *arg)
 static void
 key_preset(int arg)
 {
-	switch (arg) {
-	case 1:	/* default */
-		param_set_int(Params.nscales, 9);
-		param_set_int(Params.speed, 4);
-		param_set_int(Params.nbox, 2);
-		param_set_int(Params.adjtype, 0);
-		break;
-
-	case 2:	/* sketchable */
-		param_set_int(Params.nscales, 2);
-		param_set_int(Params.speed, 0);
-		param_set_int(Params.nbox, 2);
-		param_set_int(Params.adjtype, 0);
-		break;
-
-	case 3:	/* ravioli */
-		param_set_int(Params.nscales, 6);
-		param_set_int(Params.speed, 2);
-		param_set_int(Params.nbox, 2);
-		param_set_int(Params.adjtype, 5);
-		break;
-
-	case 4:	/* circles */
-		param_set_int(Params.nscales, 5);
-		param_set_int(Params.speed, 4);
-		param_set_int(Params.nbox, 2);
-		param_set_int(Params.adjtype, 6);
-		break;
-
-	case 5:	/* complexity fade-in */
-		param_set_int(Params.nscales, 2);
-		param_set_int(Params.speed, 6);
-		param_set_int(Params.nbox, 2);
-		param_set_int(Params.adjtype, 5);
+	if (arg == 1) {				/* default */
+		param_reset_to_defaults();
+	} else if (arg == 2) {			/* sketchable */
+		param_undump("aNS2SP0");
+	} else if (arg == 3) {			/* ravioli */
+		param_undump("aNS6SP2AT5");
+	} else if (arg == 4) {			/* circles */
+		param_undump("aNS5SP4AT6");
+	} else if (arg == 5) {			/* complexity fade-in */
+		param_undump("aNS2SP6AT5");
 		datasrc_step_registercb(40, key_preset_5_cb, NULL);
-		break;
-
-	case 6:	/* complexity fade-out */
-		param_set_int(Params.nscales, 9);
-		param_set_int(Params.speed, 6);
-		param_set_int(Params.nbox, 3);
-		param_set_int(Params.adjtype, 1);
+	} else if (arg == 6) {			/* complexity fade-out */
+		param_undump("aNS9SP6NB3AT1");
 		datasrc_step_registercb(15, key_preset_6_cb, NULL);
-		break;
-
-	default:
-		break;
 	}
 }
 
 void
 tweak_preinit(void)
 {
-	param_init_t	pi;
+	param_register_table(Param_values,
+	    sizeof (Param_values) / sizeof (*Param_values));
 
-	bzero(&pi, sizeof (pi));
-
-	/*
-	 * Number of scales to use.
-	 */
-	pi.pi_min = 2;
-	pi.pi_default = NSCALES;
-	pi.pi_max = NSCALES;
-	pi.pi_units = 1;
-	pi.pi_ap_freq = AP_FREQ_LOW;
-	pi.pi_ap_rate = AP_RATE_MED;
-	Params.nscales = param_register("nscales", &pi);
-
+	Params.nscales = param_lookup("nscales");
 	param_key_register('<', KB_DEFAULT, Params.nscales, -1);
 	param_key_register(',', KB_DEFAULT, Params.nscales, -1);
 	param_key_register('>', KB_DEFAULT, Params.nscales,  1);
@@ -127,18 +107,7 @@ tweak_preinit(void)
 	param_key_register('9', KB_KEYPAD, Params.nscales, -1);
 	param_key_register('-', KB_KEYPAD, Params.nscales,  1);
 
-	/*
-	 * log2(scale factor) for multiscale adj[]
-	 * -1 = stop updates (still lets the heatmap spin)
-	 */
-	pi.pi_min = 0;		// -1 is too non-intuitive to use w/ autopilot
-	pi.pi_default = 0;
-	pi.pi_max = 6;
-	pi.pi_units = 1;
-	pi.pi_ap_freq = AP_FREQ_MED;
-	pi.pi_ap_rate = AP_RATE_MED;
-	Params.speed = param_register("speed", &pi);
-
+	Params.speed = param_lookup("speed");
 	param_key_register('-', KB_DEFAULT, Params.speed, -1);
 	param_key_register('_', KB_DEFAULT, Params.speed, -1);
 	param_key_register('+', KB_DEFAULT, Params.speed,  1);
@@ -146,45 +115,15 @@ tweak_preinit(void)
 	param_key_register('6', KB_KEYPAD, Params.speed, -1);
 	param_key_register('+', KB_KEYPAD, Params.speed,  1);
 
-	/*
-	 * Number of box blur passes to do.
-	 */
-	pi.pi_min = 1;
-	pi.pi_default = 2;
-	pi.pi_max = 3;
-	pi.pi_units = 1;
-	pi.pi_ap_freq = AP_FREQ_LOW;
-	pi.pi_ap_rate = AP_RATE_LOW;
-	Params.nbox = param_register("nbox", &pi);
-
+	Params.nbox = param_lookup("nbox");
 	param_key_register('b', KB_DEFAULT, Params.nbox, -1);
 	param_key_register('B', KB_DEFAULT, Params.nbox,  1);
 
-	/*
-	 * Which array of adjustments to use.
-	 */
-	pi.pi_min = 0;
-	pi.pi_default = 0;
-	pi.pi_max = (NADJTYPE - 1 + pi.pi_min);
-	pi.pi_units = 1;
-	pi.pi_ap_freq = AP_FREQ_LOW;
-	pi.pi_ap_rate = AP_RATE_HIGH;
-	Params.adjtype = param_register("adjtype", &pi);
-
+	Params.adjtype = param_lookup("adjtype");
 	param_key_register('j', KB_DEFAULT, Params.adjtype, -1);
 	param_key_register('J', KB_DEFAULT, Params.adjtype,  1);
 
-	/*
-	 * Which style of rendering to use.
-	 */
-	pi.pi_min = INT_MIN;
-	pi.pi_default = 0;
-	pi.pi_max = INT_MAX;
-	pi.pi_units = 1;
-	pi.pi_ap_freq = AP_FREQ_OFF;
-	pi.pi_ap_rate = AP_RATE_OFF;
-	Params.rendertype = param_register("rendertype", &pi);
-
+	Params.rendertype = param_lookup("rendertype");
 	param_key_register('n', KB_DEFAULT, Params.rendertype, -1);
 	param_key_register('N', KB_DEFAULT, Params.rendertype,  1);
 

@@ -31,7 +31,7 @@
 #include "osdep.h"
 #include "param.h"
 #include "randbj.h"
-#include "shared.h"
+#include "tweak.h"
 #include "util.h"
 
 /* ------------------------------------------------------------------ */
@@ -43,8 +43,6 @@ struct {
 	kernel_data_t	import_kernel;
 	kernel_data_t	step_kernel;
 	kernel_data_t	render_kernel;
-
-	param_id_t	threshid;
 
 	cl_mem		arena[2];	/* Width * Height * sizeof (float) */
 	cl_mem		random;		/* state for RNG */
@@ -83,23 +81,17 @@ life_datavec_shape(void)
 
 /* ------------------------------------------------------------------ */
 
-static float
-life_threshold(void)
-{
-	return (param_float(Life.threshid));
-}
-
 static void
 life_unrender(cl_mem image, cl_mem data)
 {
 	kernel_data_t	*const	kd = &Life.unrender_kernel;
-	float			thresh = life_threshold();
+	float			aliveness = tweak_aliveness();
 	int			arg;
 
 	arg = 0;
 	kernel_setarg(kd, arg++, sizeof (pix_t), &Width);
 	kernel_setarg(kd, arg++, sizeof (pix_t), &Height);
-	kernel_setarg(kd, arg++, sizeof (float), &thresh);
+	kernel_setarg(kd, arg++, sizeof (float), &aliveness);
 	kernel_setarg(kd, arg++, sizeof (cl_mem), &image);
 	kernel_setarg(kd, arg++, sizeof (cl_mem), &data);
 	kernel_invoke(kd, 2, NULL, NULL);
@@ -109,14 +101,14 @@ static void
 life_import(cl_mem data)
 {
 	kernel_data_t	*const	kd = &Life.import_kernel;
-	float			thresh = life_threshold();
+	float			aliveness = tweak_aliveness();
 	const int		cur = (Life.steps & 1);
 	int			arg;
 
 	arg = 0;
 	kernel_setarg(kd, arg++, sizeof (pix_t), &Width);
 	kernel_setarg(kd, arg++, sizeof (pix_t), &Height);
-	kernel_setarg(kd, arg++, sizeof (float), &thresh);
+	kernel_setarg(kd, arg++, sizeof (float), &aliveness);
 	kernel_setarg(kd, arg++, sizeof (cl_mem), &data);
 	kernel_setarg(kd, arg++, sizeof (cl_mem), &Life.arena[cur]);
 	kernel_invoke(kd, 2, NULL, NULL);
@@ -126,7 +118,7 @@ static void
 life_step(cl_mem result)
 {
 	kernel_data_t	*const	kd = &Life.step_kernel;
-	float			thresh = life_threshold();
+	float			aliveness = tweak_aliveness();
 	int			steps = Life.steps;
 	const int		cur = (steps & 1);
 	int			arg;
@@ -136,7 +128,7 @@ life_step(cl_mem result)
 	arg = 0;
 	kernel_setarg(kd, arg++, sizeof (pix_t), &Width);
 	kernel_setarg(kd, arg++, sizeof (pix_t), &Height);
-	kernel_setarg(kd, arg++, sizeof (float), &thresh);
+	kernel_setarg(kd, arg++, sizeof (float), &aliveness);
 	kernel_setarg(kd, arg++, sizeof (int), &steps);
 	kernel_setarg(kd, arg++, sizeof (cl_mem), &Life.random);
 	kernel_setarg(kd, arg++, sizeof (cl_mem), &Life.arena[cur]);
@@ -180,13 +172,13 @@ static void
 life_render(cl_mem data, cl_mem image)
 {
 	kernel_data_t	*const	kd = &Life.render_kernel;
-	float			thresh = life_threshold();
+	float			aliveness = tweak_aliveness();
 	int			arg;
 
 	arg = 0;
 	kernel_setarg(kd, arg++, sizeof (pix_t), &Width);
 	kernel_setarg(kd, arg++, sizeof (pix_t), &Height);
-	kernel_setarg(kd, arg++, sizeof (float), &thresh);
+	kernel_setarg(kd, arg++, sizeof (float), &aliveness);
 	kernel_setarg(kd, arg++, sizeof (cl_mem), &data);
 	kernel_setarg(kd, arg++, sizeof (cl_mem), &image);
 	kernel_invoke(kd, 2, NULL, NULL);
@@ -197,26 +189,6 @@ life_render(cl_mem data, cl_mem image)
 static void
 life_preinit(void)
 {
-	param_init_t	pi;
-
-	bzero(&pi, sizeof (pi));
-
-	/*
-	 * Aliveness threshold.
-	 */
-	pi.pi_min = THRESH_SCALE * 0.01f;
-	pi.pi_default = THRESH_SCALE * 0.75f;
-	pi.pi_max = THRESH_SCALE;
-	pi.pi_units = 1.0f / (float)THRESH_SCALE;
-	pi.pi_ap_freq = AP_FREQ_OFF;
-	pi.pi_ap_rate = AP_RATE_OFF;
-	Life.threshid = param_register("aliveness", &pi);
-
-	param_key_register('-', KB_DEFAULT, Life.threshid, -1);
-	param_key_register('_', KB_DEFAULT, Life.threshid, -1);
-	param_key_register('+', KB_DEFAULT, Life.threshid,  1);
-	param_key_register('=', KB_DEFAULT, Life.threshid,  1);
-
 	Life.ops.unrender = life_unrender;
 	Life.ops.import = life_import;
 	Life.ops.step_and_export = life_step;
@@ -224,6 +196,8 @@ life_preinit(void)
 	Life.ops.min = life_min;
 	Life.ops.max = life_max;
 	Life.ops.datavec_shape = life_datavec_shape;
+
+	tweak_preinit();
 
 	debug_register_toggle('c', "core algorithm", DB_CORE, NULL);
 }

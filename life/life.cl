@@ -2,9 +2,7 @@
  * life.cl - the computational kernels for John Conway's Game of Life.
  */
 
-#include "shared.h"
-
-#define	UNIT		(1.0f / (float)THRESH_SCALE)
+#define	UNIT		(0.01f)
 
 #define	WRAP(x,max)	(((x) + (max)) % (max))
 #define	PIXEL(x,y,w,h)	(((WRAP(y,h)) * (w)) + (WRAP(x,w)))
