@@ -11,21 +11,26 @@
  * How frequently autopilot should tune this parameter.
  */
 typedef enum {
-	AP_FREQ_OFF	= 0,		// do not use autopilot
-	AP_FREQ_LOW,			// don't tune often
-	AP_FREQ_MED,			// 
-	AP_FREQ_HIGH			// tune frequently
+	APF_OFF = 0,			// do not use autopilot
+	APF_LOW,			// don't tune often
+	APF_MED,			// 
+	APF_HIGH			// tune frequently
 } ap_freq_t;
 
 /*
  * How fast-moving should autopilot's updates be.
+ *
+ * Even though there is an APF_OFF, there is no APR_OFF. Giving the autopilot
+ * access to tables of preset parameters means that it can wind up tweaking
+ * any parameter that could show up in a param_dump() string. So even if a
+ * parameter shouldn't be part of the default set of autopilot tweaks, it
+ * should have a tweak rate specified.
  */
 typedef enum {
-	AP_RATE_OFF	= 0,		// do not use autopilot
-	AP_RATE_PAUSE,			// change value very slowly
-	AP_RATE_LOW,			// change value slowly
-	AP_RATE_MED,			//
-	AP_RATE_HIGH			// change value immediately
+	APR_PAUSE = 0,			// change value very slowly
+	APR_LOW,			// change value slowly
+	APR_MED,			//
+	APR_HIGH			// change value immediately
 } ap_rate_t;
 
 /*
@@ -42,19 +47,50 @@ typedef enum {
  */
 typedef struct {
 	int		pi_min;		// minimum value
-	int		pi_max;		// maximum value
 	int		pi_default;	// default value
+	int		pi_max;		// maximum value
 	float		pi_units;	// multiply by this when returning value
 	ap_freq_t	pi_ap_freq;	// see above
 	ap_rate_t	pi_ap_rate;	// see above
+	const char	*pi_abbrev;	// two-character abbreviation of name
+	const char	*pi_name;	// full name of parameter
 } param_init_t;
 
 /*
- * Register a new tunable parameter.  "name" is the name of the parameter,
- * and "pi" points to a filled-in param_init_t describing its values.
+ * A structure for tracking sets of interesting parameter values,
+ * as dumped out via param_dump().
+ */
+typedef struct {
+	const char	*pp_dumpstr;	// dumped parameter string
+	const char	*pp_descr;	// human-readable description
+} param_preset_t;
+
+/* ------------------------------------------------------------------ */
+
+/*
+ * Register a new tunable parameter.  "pi" points to a filled-in param_init_t
+ * describing its values.
  */
 extern param_id_t
-param_register(const char *name, param_init_t *pi);
+param_register(const param_init_t *pi);
+
+/*
+ * Register a table of tunable parameters.
+ */
+extern void
+param_register_table(const param_init_t *pi, size_t nparam);
+
+/*
+ * Register a table of interesting preset parameter values.
+ */
+extern void
+param_register_preset_table(const param_preset_t *pp, size_t npreset);
+
+/*
+ * Look up a parameter by its name. This aborts if an invalid name is passed.
+ */
+extern param_id_t
+param_lookup(const char *name);
 
 /*
  * Register callback "cb" to be called whenever the parameter with id "id"
@@ -107,10 +143,28 @@ param_set_int(param_id_t id, int val);
 extern void
 param_set_float(param_id_t id, float val);
 
+/*
+ * Reset all parameters to their default values.
+ */
+extern void
+param_reset_to_defaults(void);
+
+/*
+ * Dump the current parameters into a string.
+ */
+extern void
+param_dump(char *str, size_t len);
+
+/*
+ * Set the parameters based on a dumped string.
+ */
+extern void
+param_undump(const char *str);
+
 /* ------------------------------------------------------------------ */
 
 extern void
-param_step(void);
+autopilot_step(void);
 
 extern void
 autopilot_enable(void);
