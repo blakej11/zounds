@@ -49,14 +49,8 @@
  * <H,S,V> is in [0,1].
  */
 static float3
-image_to_hsv(
-	pix_t			X,		/* in */
-	pix_t			Y,		/* in */
-	__read_only image2d_t	image)		/* in */
+rgb_to_hsv(const float3 rgb)
 {
-	const int2	coord = (int2)(X, Y);
-	const float4	rgb = read_imagef(image, coord);
-
 	/*
 	 * Convert <R,G,B> to <H,S,V>.
 	 */
@@ -105,12 +99,8 @@ image_to_hsv(
  *
  * But the components of "hsv" that's passed in are in the range [0, 1].
  */
-static void
-hsv_to_image(
-	pix_t			X,		/* in */
-	pix_t			Y,		/* in */
-	float3			hsv,		/* in */
-	__write_only image2d_t	image)		/* out */
+static float3
+hsv_to_rgb(const float3 hsv)
 {
 	const float	h = hsv.x * 6.0f;
 	const float	s = hsv.y;
@@ -136,9 +126,32 @@ hsv_to_image(
 		case 5: r = v; g = p; b = q; break;
 	}
 
+	return ((float3)(r, g, b));
+}
+
+static float3
+image_to_hsv(
+	pix_t			X,		/* in */
+	pix_t			Y,		/* in */
+	__read_only image2d_t	image)		/* in */
+{
 	const int2	coord = (int2)(X, Y);
-	const float4	result = (float4)(r, g, b, 0);
-	write_imagef(image, coord, result);
+	const float4	rgb = read_imagef(image, coord);
+
+	return (rgb_to_hsv(rgb.xyz));
+}
+
+static void
+hsv_to_image(
+	pix_t			X,		/* in */
+	pix_t			Y,		/* in */
+	float3			hsv,		/* in */
+	__write_only image2d_t	image)		/* out */
+{
+	const float3	rgb = hsv_to_rgb(hsv);
+	const int2	coord = (int2)(X, Y);
+
+	write_imagef(image, coord, (float4)(rgb, 0));
 }
 
 /*
