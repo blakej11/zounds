@@ -201,12 +201,18 @@ ocl_image_writetogpu(const void *hostsrc, cl_mem gpudst,
 extern unsigned int
 ocl_image_dbgval(cl_mem gpusrc);
 
+extern unsigned int
+ocl_image_dbgval_off(cl_mem gpusrc, pix_t off);
+
 /*
  * Return the datavec at the offset given by debug_offset()
  * from the OpenCL image2d_t at "gpusrc".
  */
 extern cl_datavec
 ocl_image_dbgdatavec(cl_mem gpusrc);
+
+extern cl_datavec
+ocl_image_dbgdatavec_off(cl_mem gpusrc, pix_t off);
 
 /*
  * Copy the OpenCL image2d_t from "src" the image2d_t at "dst".

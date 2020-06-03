@@ -741,12 +741,11 @@ ocl_image_writetogpu(const void *hostsrc, cl_mem gpudst,
 }
 
 /*
- * Read the single uint32 at offset debug_offset() of the specified image.
+ * Read the single uint32 at the specified offset of the specified image.
  */
 unsigned int
-ocl_image_dbgval(cl_mem gpusrc)
+ocl_image_dbgval_off(cl_mem gpusrc, pix_t off)
 {
-	const pix_t	off = debug_offset();
 	const size_t	origin[] = {
 		(size_t)(off % Width), (size_t)(off / Width), 0 };
 	const size_t	region[] = { 1, 1, 1 };
@@ -763,12 +762,20 @@ ocl_image_dbgval(cl_mem gpusrc)
 }
 
 /*
- * Read a cl_datavec at offset debug_offset() of the specified image.
+ * Read the single uint32 at offset debug_offset() of the specified image.
+ */
+unsigned int
+ocl_image_dbgval(cl_mem gpusrc)
+{
+	return (ocl_image_dbgval_off(gpusrc, debug_offset()));
+}
+
+/*
+ * Read a cl_datavec at the specified offset of the specified image.
  */
 cl_datavec
-ocl_image_dbgdatavec(cl_mem gpusrc)
+ocl_image_dbgdatavec_off(cl_mem gpusrc, pix_t off)
 {
-	const pix_t	off = debug_offset();
 	const size_t	origin[] = {
 		(size_t)(off % Width), (size_t)(off / Width), 0 };
 	const size_t	region[] = { 1, 1, 1 };
@@ -782,6 +789,15 @@ ocl_image_dbgdatavec(cl_mem gpusrc)
 	}
 
 	return (v);
+}
+
+/*
+ * Read a cl_datavec at offset debug_offset() of the specified image.
+ */
+cl_datavec
+ocl_image_dbgdatavec(cl_mem gpusrc)
+{
+	return (ocl_image_dbgdatavec_off(gpusrc, debug_offset()));
 }
 
 void
