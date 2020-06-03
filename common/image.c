@@ -220,6 +220,53 @@ load_file_cb(pix_t width, pix_t height, uint8_t *rgba)
 }
 
 /*
+ * Apparently it's common for webcam-like things to return their results
+ * in BGR order rather than RGB.  Thankfully, image_copy() makes it
+ * pretty easy to handle that.
+ */
+static void
+bgr_to_rgba(const uint8_t *bgr, uint8_t *rgba, pix_t op, pix_t np)
+{
+	rgba[4 * np + 0] = bgr[3 * op + 2];
+	rgba[4 * np + 1] = bgr[3 * op + 1];
+	rgba[4 * np + 2] = bgr[3 * op + 0];
+	rgba[4 * np + 3] = 0;
+}
+
+/*
+ * Load an image from the camera.
+ */
+static bool
+load_camera_cb(pix_t width, pix_t height, uint8_t *rgba)
+{
+	const bool	inited = camera_initialized();
+	uint8_t		*bgr;
+	bool		rv;
+
+	if (!inited && !camera_init()) {
+		return (false);
+	}
+
+	verbose(DB_IMAGE, "Loading image from camera\n");
+
+	if (!camera_grab()) {
+		return (false);
+	}
+
+	bgr = camera_retrieve();
+	if (bgr != NULL) {
+		bzero(rgba, width * height * 4 * sizeof (char));
+		image_copy(camera_width(), camera_height(), bgr,
+		    width, height, rgba, bgr_to_rgba);
+	}
+
+	if (!inited) {
+		camera_fini();
+	}
+	return (bgr != NULL);
+}
+
+/*
  * Get random noise.
  */
 static bool
