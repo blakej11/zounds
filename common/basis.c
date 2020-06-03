@@ -88,7 +88,6 @@ static struct {
 	angle_t		angles[NANGLES];
 
 	param_id_t	id;	/* parameter ID for spin rate */
-	int		ovalue;	/* old spin rate */
 } Basis;
 
 /* ------------------------------------------------------------------ */
@@ -284,11 +283,11 @@ basis_preinit(void)
 	pi.pi_default = 1;		/*  2 * pi/2000 per step */
 	pi.pi_max = 6;			/* 64 * pi/2000 per step */
 	pi.pi_units = 1;
-	pi.pi_ap_freq = AP_FREQ_OFF;
-	pi.pi_ap_rate = AP_RATE_OFF;
+	pi.pi_ap_freq = APF_OFF;
+	pi.pi_ap_rate = APR_LOW;
+	pi.pi_name = "basis vector rotation rate";
 
-	Basis.id = param_register("basis vector rotation rate", &pi);
-	Basis.ovalue = param_int(Basis.id);
+	Basis.id = param_register(&pi);
 
 	param_key_register('x', KB_DEFAULT, Basis.id, -1);
 	param_key_register('X', KB_DEFAULT, Basis.id,  1);

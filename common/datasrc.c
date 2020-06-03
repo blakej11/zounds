@@ -215,8 +215,9 @@ datasrc_step(cl_mem image)
 	} else {
 		/*
 		 * No images, no strokes; just do a regular step.
+		 * First run the autopilot to advance parameters if needed.
 		 */
-		param_step();	/* run the autopilot first */
+		autopilot_step();
 		(*Datasrc.ops->step_and_export)(data);
 
 		/*

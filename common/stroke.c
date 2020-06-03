@@ -69,9 +69,10 @@ stroke_preinit(void)
 	pi.pi_default = 3;
 	pi.pi_max = 6;
 	pi.pi_units = 1;		// converted in stroke_viscosity()
-	pi.pi_ap_freq = AP_FREQ_OFF;
-	pi.pi_ap_rate = AP_RATE_OFF;
-	Stroke.viscid = param_register("stroke viscosity", &pi);
+	pi.pi_ap_freq = APF_OFF;
+	pi.pi_ap_rate = APR_LOW;
+	pi.pi_name = "stroke viscosity";
+	Stroke.viscid = param_register(&pi);
 
 	param_key_register('{', KB_DEFAULT, Stroke.viscid, -1);
 	param_key_register('}', KB_DEFAULT, Stroke.viscid,  1);

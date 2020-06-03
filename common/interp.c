@@ -167,9 +167,10 @@ interp_enable(int dflt, int max)
 	pi.pi_default = MAX(1, dflt);
 	pi.pi_max = MAX(1, max);
 	pi.pi_units = 1;
-	pi.pi_ap_freq = AP_FREQ_OFF;	/* not quite so great */
-	pi.pi_ap_rate = AP_RATE_OFF;	/* not quite so great */
-	Interp.id = param_register("interpolation", &pi);
+	pi.pi_ap_freq = APF_OFF;	/* not quite so great */
+	pi.pi_ap_rate = APR_HIGH;	/* not quite so great */
+	pi.pi_name = "interpolation";
+	Interp.id = param_register(&pi);
 
 	param_key_register('i', KB_DEFAULT, Interp.id, -1);
 	param_key_register('I', KB_DEFAULT, Interp.id,  1);

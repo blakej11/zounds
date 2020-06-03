@@ -123,9 +123,10 @@ skip_preinit(void)
 	pi.pi_default = -1;
 	pi.pi_max = NSKIPS;
 	pi.pi_units = 1;
-	pi.pi_ap_freq = AP_FREQ_OFF;
-	pi.pi_ap_rate = AP_RATE_OFF;
-	Skip.id = param_register("image skipping", &pi);
+	pi.pi_ap_freq = APF_OFF;
+	pi.pi_ap_rate = APR_LOW;
+	pi.pi_name = "image skipping";
+	Skip.id = param_register(&pi);
 
 	param_key_register('e', KB_DEFAULT, Skip.id, -1);
 	param_key_register('E', KB_DEFAULT, Skip.id,  1);
