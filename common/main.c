@@ -4,6 +4,7 @@
 #include "common.h"
 
 #include "box.h"
+#include "camera.h"
 #include "debug.h"
 #include "image.h"
 #include "keyboard.h"
@@ -26,27 +27,28 @@ key_q(void)
 static void
 usage(const char *arg0)
 {
-	note("Usage: %s [-w <width>] [-h <height>] [-A] [-a] [-B] "
+	note("Usage: %s [-w <width>] [-h <height>] [-A] [-a] [-B] [-C] "
 	    "[-D <areas>] [-F] [-f <file>] [-K <keys>] [-k] [-L] "
 	    "[-r <radius>] [-R <radius>] [-s <seconds>] [-S <scale>] [-v] "
 	    "[-x <random seed>]\n\n", arg0);
 
 	note("\t-w <width>\tMake the display window <width> pixels wide.\n");
 	note("\t-h <height>\tMake the display window <height> pixels tall.\n");
-	note("\t-f <file>\tLoad the PPM file <file> as the starting image.\n");
 	note("\t-A\t\tDisable autopilot mode.\n");
 	note("\t-a\t\tDisable animation.\n");
 	note("\t-B\t\tRun box blur performance test.\n");
-	note("\t-r <radius>\tMinimum radius for box blur performance test.\n");
-	note("\t-R <radius>\tMaximum radius for box blur performance test.\n");
+	note("\t-C\t\tDisable the use of a camera.\n");
+	note("\t-D <areas>\tEnable debugging output for <areas>.\n");
 	note("\t-F\t\tDisable fullscreen mode.\n");
+	note("\t-f <file>\tLoad the PPM file <file> as the starting image.\n");
 	note("\t-K <keys>\tEnter some keystrokes from command line.\n");
 	note("\t-k\t\tRun in keypad mode.\n");
 	note("\t-L\t\tLog all keypresses.\n");
-	note("\t-v\t\tEnable verbose status output.\n");
-	note("\t-D <areas>\tEnable debugging output for <areas>.\n");
-	note("\t-s <seconds>\tSave an image every <seconds> seconds.\n");
+	note("\t-r <radius>\tMinimum radius for box blur performance test.\n");
+	note("\t-R <radius>\tMaximum radius for box blur performance test.\n");
 	note("\t-S <scale>\tCalculate images at <scale> magnification.\n");
+	note("\t-s <seconds>\tSave an image every <seconds> seconds.\n");
+	note("\t-v\t\tEnable verbose status output.\n");
 	note("\t-x <seed>\tSpecify a seed for the random number generator.\n");
 
 	exit(1);
@@ -88,7 +90,7 @@ main(int argc, char **argv)
 	randomseed = getpid();
 
 	while ((ch = getopt(argc, argv,
-	    "AaBD:Ff:Gh:K:kLR:r:S:s:vw:x:?")) != -1) {
+	    "AaBCD:Ff:Gh:K:kLR:r:S:s:vw:x:?")) != -1) {
 		switch (ch) {
 		case 'A':
 			enable_autopilot = false;
@@ -101,6 +103,9 @@ main(int argc, char **argv)
 			enable_autopilot = false;
 			go_fullscreen = false;
 			boxtest = true;
+			break;
+		case 'C':
+			camera_disable();
 			break;
 		case 'D':
 			debug_init_areas(optarg);
