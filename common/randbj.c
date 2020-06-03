@@ -38,3 +38,21 @@ srandbj(int r)
 {
 	RV = (((unsigned long long)r) << 16) | 0x330e;
 }
+
+#include <math.h>
+
+double
+normrandbj(void)
+{
+	for (;;) {
+		const double	x = 2.0 * drandbj() - 1.0;
+		const double	y = 2.0 * drandbj() - 1.0;
+		const double	rsq = x * x + y * y;
+
+		if (rsq > 0.0 && rsq < 1.0) {
+			const double	v = sqrt(-2.0 * log(rsq) / rsq);
+			return (x * v);		// or (y * v)
+		}
+	}
+	/*NOTREACHED*/
+}

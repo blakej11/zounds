@@ -24,4 +24,11 @@ drandbj(void);
 extern long
 lrandbj(void);
 
+/*
+ * Get a pseudo-random floating point number that follows a
+ * normal distribution with mean 0 and standard deviation 1.
+ */
+extern double
+normrandbj(void);
+
 #endif	/* _RANDBJ_H */
