@@ -191,8 +191,8 @@ window_stamp(const char *msg)
 static void
 window_step(void)
 {
-	debug(DB_WINDOW, "\n");		// start of a new round
-	window_stamp("window_step start");
+	// debug(DB_WINDOW, "\n");		// start of a new round
+	// window_stamp("window_step start");
 
 	if (!Win.animated && !Win.update) {
 		return;
@@ -248,7 +248,7 @@ window_step(void)
 		}
 	}
 
-	window_stamp("window_step end");
+	// window_stamp("window_step end");
 }
 
 /* ------------------------------------------------------------------ */
@@ -407,6 +407,15 @@ keyboard_cb(unsigned char key, int x, int y)
 static void
 mouse_cb(int button, int state, int x, int y)
 {
+	if (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN) {
+		const int	sx = (int)(Win.scale * x);
+		const int	sy = (int)(Win.scale * y);
+		const pix_t	offset = sy * Width + sx;
+		debug(DB_WINDOW, "mouse_cb: setting debug offset to "
+		    "%7d (<x,y> = <%d,%d>)\n", offset, sx, sy);
+		debug_set_offset(offset);
+	}
+
 	if (Win.mouse_cb && button == GLUT_LEFT_BUTTON) {
 		const int	sx = (int)(Win.scale * x);
 		const int	sy = (int)(Win.scale * y);

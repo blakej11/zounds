@@ -64,10 +64,13 @@ ocl_die(int err, const char *fmt, ...);
  * It's sometimes useful to trace a single pixel's data through multiple
  * stages of processing.  debug_offset() returns a consistent offset
  * (i.e. a value of Y * W + X) of an arbitrarily chosen single pixel that all
- * subsystems can use.
+ * subsystems can use. debug_set_offset() sets that offset.
  */
 extern pix_t
 debug_offset(void);
+
+extern void
+debug_set_offset(pix_t offset);
 
 /*
  * Register a subsystem's debug processing, as described at the top of debug.c.

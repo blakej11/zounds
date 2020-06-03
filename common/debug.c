@@ -140,6 +140,12 @@ key_v(void)
 	note("Verbosity %sabled\n", (Debug.verbose) ? "en" : "dis");
 }
 
+void
+debug_set_offset(pix_t offset)
+{
+	Debug.offset = offset;
+}
+
 pix_t
 debug_offset(void)
 {
