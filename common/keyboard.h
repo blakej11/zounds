@@ -14,6 +14,9 @@
 extern void
 key_set_binding(key_binding_type_t kb);
 
+extern key_binding_type_t
+key_get_binding(void);
+
 /*
  * Register key bindings.
  *
@@ -31,8 +34,19 @@ key_register_arg(unsigned char key, key_binding_type_t kb,
     const char *comment, void (*cb)(int), int arg);
 
 extern void
-key_register_args(unsigned char key, key_binding_type_t kb,
+key_register_param(unsigned char key, key_binding_type_t kb,
     const char *comment, void (*cb)(int, int), int arg1, int arg2);
+
+/* The type of callback called by key_register_cb*(). */
+typedef void (krcb_t)(key_binding_type_t, unsigned char);
+
+extern void
+key_register_cb_oneshot(unsigned char key, key_binding_type_t kb,
+    const char *comment, krcb_t *cb);
+
+extern void
+key_register_cb_toggle(unsigned char key, key_binding_type_t kb,
+    const char *comment, krcb_t *cb);
 
 /* ------------------------------------------------------------------ */
 

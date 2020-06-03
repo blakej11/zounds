@@ -20,23 +20,31 @@
 #include "window.h"
 
 static void	key_help(void);
-static void	key_D(void);
 static void	keyboard_cb(unsigned char key);
 
 /* ------------------------------------------------------------------ */
 
+typedef enum {
+	CM_NORMAL		= 0,	/* a regular callback */
+	CM_CAPTURE_ONESHOT	= 1,	/* send next key to cb */
+	CM_CAPTURE_TOGGLE	= 2	/* send all keys to cb until toggled */
+} cap_mode_t;
+
 typedef struct {
 	void		(*cb)(int, int);	/* a callback */
 	const char	*comment;		/* brief description */
+	cap_mode_t	cap_mode;		/* does this grab next key? */
 	int		arg1;			/* callback args */
 	int		arg2;
+	bool		is_param;		/* is this a parameter tweak? */
 } keyboard_cb_t;
 
 static struct {
 	keyboard_cb_t	cbs[KB_NUM_BINDINGS][UCHAR_MAX + 1];
 
 	key_binding_type_t kb;
-	bool		debug_key;	/* whether next key goes to debug */
+	keyboard_cb_t	*captured;
+	unsigned char	captured_key;
 } Keyboard;
 
 typedef struct {
@@ -60,16 +68,10 @@ static void
 keyboard_preinit(void)
 {
 	key_register('?', KB_DEFAULT, "display this help", key_help);
-	key_register('D', KB_DEFAULT, "toggle debug area", key_D);
 
-	/*
-	 * As with 'q', this isn't something the keypad has, but
-	 * it's nice to be able to do it if I plug in a real keyboard.
-	 */
-	key_register('D', KB_KEYPAD, "toggle debug area", key_D);
-
-	Keyboard.debug_key = false;
 	Keyboard.kb = KB_DEFAULT;
+	Keyboard.captured = NULL;
+	Keyboard.captured_key = '\0';
 
 	window_set_keyboard_cb(keyboard_cb);
 }
@@ -118,20 +120,43 @@ keyboard_cb(unsigned char key)
 		keylog_add(key);
 	}
 
-	if (Keyboard.debug_key) {
-		/*
-		 * This is a special hook to let the debug subsystem
-		 * track keypresses separately from here.  Typing "D"
-		 * invokes key_D(), which sets Keyboard.debug_key = true.
-		 * Then this code passes the keypress over to the debug
-		 * subsystem.
-		 */
-		Keyboard.debug_key = false;
-		debug_toggle(key);
+	/*
+	 * This is the hook that allows callbacks registered with
+	 * key_register_cb_*() to work.
+	 *
+	 * When their key is pressed, rather than vectoring directly to the
+	 * callback, it sets up the callback as the thing to be called for
+	 * the next keypress.
+	 */
+	if (Keyboard.captured != NULL) {
+		keyboard_cb_t	*kcb = Keyboard.captured;
+		krcb_t		*cb = (krcb_t *)kcb->cb;
+
+		assert(kcb->cap_mode == CM_CAPTURE_ONESHOT ||
+		       kcb->cap_mode == CM_CAPTURE_TOGGLE);
+
+		if (kcb->cap_mode == CM_CAPTURE_ONESHOT) {
+			Keyboard.captured = NULL;
+			Keyboard.captured_key = '\0';
+			(*cb)(Keyboard.kb, key);
+		} else if (kcb->cap_mode == CM_CAPTURE_TOGGLE) {
+			if (key == Keyboard.captured_key) {
+				Keyboard.captured = NULL;
+				Keyboard.captured_key = '\0';
+			} else {
+				(*cb)(Keyboard.kb, key);
+			}
+		}
 	} else {
 		keyboard_cb_t	*kcb = &Keyboard.cbs[Keyboard.kb][key];
+
 		if (kcb->cb != NULL) {
-			(*kcb->cb)(kcb->arg1, kcb->arg2);
+			if (kcb->cap_mode == CM_NORMAL) {
+				(*kcb->cb)(kcb->arg1, kcb->arg2);
+			} else {
+				Keyboard.captured = kcb;
+				Keyboard.captured_key = key;
+			}
 		}
 	}
 }
@@ -145,25 +170,15 @@ key_process(const char *keys)
 }
 
 static void
-key_D(void)
+key_help_pass(bool is_param)
 {
-	assert(!Keyboard.debug_key);
-
-	Keyboard.debug_key = true;
-}
-
-static void
-key_help(void)
-{
-	note("Keyboard controls:\n\n");
-
 	note("   key  description\n");
 	note("------  --------------------------------------\n");
 
 	for (int key = 0; key <= UCHAR_MAX; key++) {
 		keyboard_cb_t	*kcb = &Keyboard.cbs[Keyboard.kb][key];
 
-		if (kcb->comment == NULL) {
+		if (kcb->comment == NULL || kcb->is_param != is_param) {
 			continue;
 		}
 
@@ -192,7 +207,23 @@ key_help(void)
 	}
 }
 
+static void
+key_help(void)
+{
+	note("Keyboard controls:\n\n");
+	key_help_pass(false);
+
+	note("\nKeyboard parameter controls:\n\n");
+	key_help_pass(true);
+}
+
 /* ------------------------------------------------------------------ */
+
+key_binding_type_t
+key_get_binding(void)
+{
+	return (Keyboard.kb);
+}
 
 void
 key_set_binding(key_binding_type_t kb)
@@ -202,9 +233,10 @@ key_set_binding(key_binding_type_t kb)
 	Keyboard.kb = kb;
 }
 
-void
-key_register_args(unsigned char key, key_binding_type_t kb,
-    const char *comment, void (*cb)(int, int), int arg1, int arg2)
+static void
+key_register_internal(unsigned char key, key_binding_type_t kb,
+    const char *comment, cap_mode_t cm,
+    void (*cb)(int, int), int arg1, int arg2, bool is_param)
 {
 	keyboard_cb_t	*kcb = &Keyboard.cbs[kb][key];
 
@@ -226,21 +258,55 @@ key_register_args(unsigned char key, key_binding_type_t kb,
 
 		kcb->cb = cb;
 		kcb->comment = p;
+		kcb->cap_mode = cm;
 		kcb->arg1 = arg1;
 		kcb->arg2 = arg2;
+		kcb->is_param = is_param;
 	}
+}
+
+/*
+ * For registering a parameter-tweak callback.
+ *
+ * No reason we couldn't have a key_register_args() that takes two args
+ * and isn't a param callback; we just don't have need for one right now.
+ */
+void
+key_register_param(unsigned char key, key_binding_type_t kb,
+    const char *comment, void (*cb)(int, int), int arg1, int arg2)
+{
+	key_register_internal(key, kb, comment, CM_NORMAL,
+	    cb, arg1, arg2, true);
 }
 
 void
 key_register_arg(unsigned char key, key_binding_type_t kb,
     const char *comment, void (*cb)(int), int arg)
 {
-	key_register_args(key, kb, comment, (void (*)(int, int))cb, arg, 0);
+	key_register_internal(key, kb, comment, CM_NORMAL,
+	    (void (*)(int, int))cb, arg, 0, false);
 }
 
 void
 key_register(unsigned char key, key_binding_type_t kb,
     const char *comment, void (*cb)(void))
 {
-	key_register_args(key, kb, comment, (void (*)(int, int))cb, 0, 0);
+	key_register_internal(key, kb, comment, CM_NORMAL,
+	    (void (*)(int, int))cb, 0, 0, false);
+}
+
+void
+key_register_cb_oneshot(unsigned char key, key_binding_type_t kb,
+    const char *comment, krcb_t *cb)
+{
+	key_register_internal(key, kb, comment, CM_CAPTURE_ONESHOT,
+	    (void (*)(int, int))cb, 0, 0, false);
+}
+
+void
+key_register_cb_toggle(unsigned char key, key_binding_type_t kb,
+    const char *comment, krcb_t *cb)
+{
+	key_register_internal(key, kb, comment, CM_CAPTURE_TOGGLE,
+	    (void (*)(int, int))cb, 0, 0, false);
 }
