@@ -59,6 +59,7 @@ OBJS	= basis.o	\
 	  param.o	\
 	  ppm.o		\
 	  randbj.o	\
+	  reduce.o	\
 	  skip.o	\
 	  stroke.o	\
 	  template.o	\
@@ -72,7 +73,7 @@ CLFILES = box.cl	\
 	  heatmap.cl	\
 	  interp.cl	\
 	  kernel.cl	\
-	  skip.cl	\
+	  reduce.cl	\
 	  stroke.cl	\
 	  subblock.cl
 

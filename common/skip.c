@@ -48,16 +48,6 @@
  *   out a way to balance that out.  Maybe hash each channel separately, and
  *   use the result from whichever channel has the winner farthest ahead of
  *   the second-place result?
- *
- * - This uses OpenCL to perform the image reduction.  This isn't a fantastic
- *   fit for OpenCL, since it involves coordinating results across many pixels,
- *   but it seems to perform better (on my laptop) than doing it on the CPU.
- *   The final step of the reduction kernel is to add the intermediate result
- *   to a global tracking array, using atomic_add().  But OpenCL can only use
- *   atomic_add() on integral data types.  So, rather than having a nicely
- *   general image reduction kernel, the last step picks out one component
- *   of the vector, scales it up by 256, converts it to an integer, and adds
- *   that to the tracking array.
  */
 #include <strings.h>
 #include <assert.h>
@@ -69,6 +59,7 @@
 #include "module.h"
 #include "opencl.h"
 #include "param.h"
+#include "reduce.h"
 #include "skip.h"
 #include "util.h"
 
@@ -93,8 +84,6 @@ static struct {
 	int		param;		/* value of skip parameter */
 	int		nskip;		/* number of images to skip */
 
-	kernel_data_t	reduce_kernel;	/* reduction kernel */
-	cl_mem		reduce_gpu;	/* memory for reduction */
 	int		*reduce_cpu;	/* memory for reduction */
 
 	skiphash_t	hashes[NHASHES]; /* image hashes */
@@ -139,9 +128,6 @@ skip_init(void)
 {
 	const size_t	reducesz = (size_t)REDUCE * REDUCE * sizeof (int);
 
-	kernel_create(&Skip.reduce_kernel, "reduce");
-
-	Skip.reduce_gpu = buffer_alloc(reducesz);
 	Skip.reduce_cpu = mem_alloc(reducesz);
 
 	bzero(&Skip.hashes, sizeof (Skip.hashes));
@@ -153,10 +139,7 @@ skip_init(void)
 static void
 skip_fini(void)
 {
-	buffer_free(&Skip.reduce_gpu);
 	mem_free((void **)&Skip.reduce_cpu);
-
-	kernel_cleanup(&Skip.reduce_kernel);
 }
 
 const module_ops_t	skip_ops = {
@@ -190,57 +173,6 @@ skip_adjust(void)
 }
 
 /*
- * Wrapper around the OpenCL kernel to do image reduction.
- * The "data" is an image2d_t.
- */
-static void
-skip_reduce(cl_mem data, int dim, float min, float max)
-{
-	const size_t		reducesz =
-	    (size_t)REDUCE * REDUCE * sizeof (int);
-	kernel_data_t	*const	kd = &Skip.reduce_kernel;
-	pix_t			reduce = REDUCE;
-	int			arg;
-	int			x, y, p;
-
-	bzero(Skip.reduce_cpu, reducesz);
-	buffer_writetogpu(Skip.reduce_cpu, Skip.reduce_gpu, reducesz);
-
-	arg = 0;
-	kernel_setarg(kd, arg++, sizeof (pix_t), &Width);
-	kernel_setarg(kd, arg++, sizeof (pix_t), &Height);
-	kernel_setarg(kd, arg++, sizeof (cl_mem), &data);
-	kernel_setarg(kd, arg++, REDUCE * REDUCE * sizeof (cl_datavec), NULL);
-	kernel_setarg(kd, arg++, REDUCE * REDUCE * sizeof (int), NULL);
-	kernel_setarg(kd, arg++, sizeof (pix_t), &reduce);
-	kernel_setarg(kd, arg++, sizeof (int), &dim);
-	kernel_setarg(kd, arg++, sizeof (float), &min);
-	kernel_setarg(kd, arg++, sizeof (float), &max);
-	kernel_setarg(kd, arg++, sizeof (cl_mem), &Skip.reduce_gpu);
-	kernel_invoke(kd, 2, NULL, NULL);
-
-	buffer_readfromgpu(Skip.reduce_gpu, Skip.reduce_cpu, reducesz);
-
-	/*
-	 * The kernel just adds up the results; here we scale them down to get
-	 * an average value for each resulting pixel.  The extra rigmarole for
-	 * calculating "dx" and "dy" is because REDUCE might not divide Width
-	 * or Height evenly, and we want to get the same pixel count as the
-	 * OpenCL kernel uses.
-	 */
-	for (p = y = 0; y < REDUCE; y++) {
-		for (x = 0; x < REDUCE; x++, p++) {
-			const int	dx =
-			    ((x + 1) * Width / REDUCE) - (x * Width / REDUCE);
-			const int	dy =
-			    ((y + 1) * Height / REDUCE) - (y * Height / REDUCE);
-
-			Skip.reduce_cpu[p] /= (dx * dy);
-		}
-	}
-}
-
-/*
  * Return the number of bits set in the specified byte.
  */
 static int
@@ -267,6 +199,7 @@ skip_hash(void)
 	const int	idx = Skip.nexthash % NHASHES;
 	uint8_t	*const	shash = &Skip.hashes[idx].hash[0];
 	uint8_t	*const	ehash = &Skip.hashes[idx].hash[HASHSZ];
+	int	*const	reduced = Skip.reduce_cpu;
 	uint8_t		*hash;
 	int		x, y, p, newbits, nbits;
 	uint8_t		bits;
@@ -282,14 +215,12 @@ skip_hash(void)
 	assert(8 % HASHBITS == 0);
 
 	for (p = y = 0; y < REDUCE; y++) {
-		for (x = 0, p++; x < REDUCE; x++, p++) {
-			int	*n = &Skip.reduce_cpu[p];
-
+		for (x = 0; x < REDUCE; x++, p++) {
 			/*
 			 * Take the top HASHBITS bits of each pixel and
 			 * concatenate them.
 			 */
-			newbits = n[p] >> (8 - HASHBITS);
+			newbits = reduced[p] >> (8 - HASHBITS);
 			newbits &= ((1 << HASHBITS) - 1);
 
 			bits = (bits << HASHBITS) | newbits;
@@ -384,7 +315,7 @@ skip_analyze(cl_mem data, int dim, float min, float max)
 	/*
 	 * Generate a highly "reduced" version of the data (16x16 pixels).
 	 */
-	skip_reduce(data, dim, min, max);
+	reduce(data, dim, min, max, Skip.reduce_cpu, REDUCE);
 
 	/*
 	 * Create a hash of the reduced image.

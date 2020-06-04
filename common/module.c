@@ -27,6 +27,7 @@ extern const module_ops_t	keyboard_ops;
 extern const module_ops_t	mouse_ops;
 extern const module_ops_t	opencl_ops;
 extern const module_ops_t	param_ops;
+extern const module_ops_t	reduce_ops;
 extern const module_ops_t	skip_ops;
 extern const module_ops_t	stroke_ops;
 extern const module_ops_t	window_ops;
@@ -45,6 +46,7 @@ static const module_ops_t *Modules[] = {
 	&mouse_ops,
 	&opencl_ops,
 	&param_ops,
+	&reduce_ops,
 	&skip_ops,
 	&stroke_ops,
 	&window_ops

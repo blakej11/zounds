@@ -16,7 +16,7 @@
 #include "color.cl"	// used by heatmap.cl
 #include "heatmap.cl"
 #include "interp.cl"
-#include "skip.cl"
+#include "reduce.cl"
 #include "stroke.cl"
 
 /*
