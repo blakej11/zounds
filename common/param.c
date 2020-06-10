@@ -258,12 +258,6 @@ param_float(param_id_t id)
 {
 	param_t	*const	param = &Param.value_table[id];
 
-	/*
-	 * There's no actual reason why we couldn't have a float-valued
-	 * parameter with units of 1. But generally if you specify units of 1,
-	 * that means that you want it as an integer.
-	 */
-	assert(param->pi.pi_units != 1.0);
 	return ((float)param->value * (float)param->pi.pi_units);
 }
 
