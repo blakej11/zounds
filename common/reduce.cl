@@ -60,15 +60,35 @@ reduce(
 {
 	const pix_t	X = get_global_id(0);
 	const pix_t	Y = get_global_id(1);
+	const int	w = get_local_size(0);
+	const int	h = get_local_size(1);
 
 	if (X >= W || Y >= H) {
+		/*
+		 * All worker threads need to go through the barrier the
+		 * exact same number of times. So if the image is not an
+		 * exact multiple of the workgroup size, there will be some
+		 * workers that satisfy the above if-test, and we need to
+		 * let them just stroll through the barriers without doing
+		 * any actual work.
+		 */
+		barrier(CLK_LOCAL_MEM_FENCE);
+
+		for (int i = 1; i < w; i <<= 1) {
+			barrier(CLK_LOCAL_MEM_FENCE);
+			barrier(CLK_LOCAL_MEM_FENCE);
+		}
+
+		for (int i = 1; i < h; i <<= 1) {
+			barrier(CLK_LOCAL_MEM_FENCE);
+			barrier(CLK_LOCAL_MEM_FENCE);
+		}
+
 		return;
 	}
 
 	const int	x = get_local_id(0);
 	const int	y = get_local_id(1);
-	const int	w = get_local_size(0);
-	const int	h = get_local_size(1);
 	const int	p = y * w + x;
 	const int	id = ((Y * reduce) / H) * reduce + (X * reduce) / W;
 

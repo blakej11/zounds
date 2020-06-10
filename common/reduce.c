@@ -79,9 +79,10 @@ void
 reduce_addup(cl_mem data, int dim, float min, float max,
     int *tgtbuffer, pix_t bufedge)
 {
+	kernel_data_t	*const	kd = &Reduce.reduce_kernel;
+	const size_t		wgsize = kernel_wgsize(kd);
 	const size_t		bufsize =
 	    (size_t)bufedge * bufedge * sizeof (int);
-	kernel_data_t	*const	kd = &Reduce.reduce_kernel;
 	int			arg;
 
 	if (Reduce.reduce_bufsize != bufsize) {
@@ -99,8 +100,8 @@ reduce_addup(cl_mem data, int dim, float min, float max,
 	kernel_setarg(kd, arg++, sizeof (pix_t), &Width);
 	kernel_setarg(kd, arg++, sizeof (pix_t), &Height);
 	kernel_setarg(kd, arg++, sizeof (cl_mem), &data);
-	kernel_setarg(kd, arg++, bufedge * bufedge * sizeof (cl_datavec), NULL);
-	kernel_setarg(kd, arg++, bufedge * bufedge * sizeof (int), NULL);
+	kernel_setarg(kd, arg++, wgsize * sizeof (cl_datavec), NULL);
+	kernel_setarg(kd, arg++, wgsize * sizeof (int), NULL);
 	kernel_setarg(kd, arg++, sizeof (pix_t), &bufedge);
 	kernel_setarg(kd, arg++, sizeof (int), &dim);
 	kernel_setarg(kd, arg++, sizeof (float), &min);
