@@ -177,10 +177,23 @@ camdelta_step(cl_mem newdelta)
 /* ------------------------------------------------------------------ */
 
 static void
-camdelta_init(void)
+camdelta_preinit(void)
 {
+	/*
+	 * Do this in preinit(), so other things in the init() stage can
+	 * determine whether the camera is in use.
+	 */
 	if (!camera_init()) {
 		Camdelta.disabled = true;
+	} else {
+		Camdelta.disabled = false;
+	}
+}
+
+static void
+camdelta_init(void)
+{
+	if (Camdelta.disabled) {
 		Camdelta.camwidth = 0;
 		Camdelta.camheight = 0;
 		for (int nd = 0; nd < NDATA; nd++) {
@@ -195,7 +208,6 @@ camdelta_init(void)
 		const size_t	camsize =
 		    camwidth * camheight * 3 * sizeof (char);
 
-		Camdelta.disabled = false;
 		Camdelta.camwidth = camwidth;
 		Camdelta.camheight = camheight;
 		Camdelta.camsize = camsize;
@@ -231,7 +243,7 @@ camdelta_fini(void)
 }
 
 const module_ops_t	camdelta_ops = {
-	NULL,
+	camdelta_preinit,
 	camdelta_init,
 	camdelta_fini
 };
