@@ -13,7 +13,8 @@
  */
 #include "box.cl"
 #include "subblock.cl"
-#include "color.cl"	// used by heatmap.cl
+#include "color.cl"	// used by camdelta.cl and heatmap.cl
+#include "camdelta.cl"
 #include "heatmap.cl"
 #include "interp.cl"
 #include "reduce.cl"

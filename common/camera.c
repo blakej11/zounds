@@ -44,6 +44,7 @@ camera_init(void)
 	Camera.capture = cvCreateCameraCapture(CV_CAP_ANY);
 	if (Camera.capture == NULL) {
 		warn("camera_init(): failed to initialize camera\n");
+		camera_disable();
 		return (false);
 	}
 

@@ -16,6 +16,7 @@
 
 extern const module_ops_t	basis_ops;
 extern const module_ops_t	box_ops;
+extern const module_ops_t	camdelta_ops;
 extern const module_ops_t	core_ops;
 extern const module_ops_t	datasrc_ops;
 extern const module_ops_t	debug_ops;
@@ -35,6 +36,7 @@ extern const module_ops_t	window_ops;
 static const module_ops_t *Modules[] = {
 	&basis_ops,
 	&box_ops,
+	&camdelta_ops,
 	&core_ops,
 	&datasrc_ops,
 	&debug_ops,
