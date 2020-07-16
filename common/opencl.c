@@ -711,6 +711,21 @@ ocl_datavec_image_create(pix_t width, pix_t height)
 }
 
 void
+ocl_datavec_image_fill(cl_mem dst, pix_t width, pix_t height,
+    cl_datavec *datavec)
+{
+	const size_t	origin[] = { 0, 0, 0 };
+	const size_t	region[] = { (size_t)width, (size_t)height, 1 };
+	cl_int		err;
+
+	err = clEnqueueFillImage(Opencl.commands, dst,
+	    (const void *)datavec, origin, region, 0, NULL, NULL);
+	if (err != CL_SUCCESS) {
+		ocl_die(err, "Failed to fill image");
+	}
+}
+
+void
 ocl_image_readfromgpu(const cl_mem gpusrc, void *hostdst,
     pix_t width, pix_t height)
 {

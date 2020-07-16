@@ -181,6 +181,13 @@ extern cl_mem
 ocl_datavec_image_create(pix_t width, pix_t height);
 
 /*
+ * Fill an OpenCL image2d_t with the given datavec, over and over.
+ */
+extern void
+ocl_datavec_image_fill(cl_mem dst, pix_t width, pix_t height,
+    cl_datavec *datavec);
+
+/*
  * Copy the OpenCL image2d_t at "gpusrc" to the host buffer at "hostdst".
  */
 extern void
