@@ -161,8 +161,8 @@ texture_init(float width_fraction, float height_fraction)
 	 * It is represented as two triangles, rather than one rectangle,
 	 * because the hardware thinks of everything in terms of triangles.
 	 */
-	const float	wf = width_fraction;
-	const float	hf = height_fraction;
+	const float	wf = 1.0f; // was "width_fraction"
+	const float	hf = 1.0f; // was "height_fraction"
 	const GLfloat	vertices[6][2] = {
 		{ -wf,  hf }, { -wf, -hf }, {  wf, -hf },
 		{ -wf,  hf }, {  wf, -hf }, {  wf,  hf }
