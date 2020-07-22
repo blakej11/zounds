@@ -75,7 +75,7 @@ camera_delta(
 	const pix_t		X = get_global_id(0);
 	const pix_t		Y = get_global_id(1);
 
-	if (X >= iW || Y >= iH) {
+	if (X >= rW || Y >= rH) {
 		return;
 	}
 
