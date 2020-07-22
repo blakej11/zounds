@@ -35,6 +35,12 @@ camera_disable(void)
 }
 
 bool
+camera_disabled(void)
+{
+	return (Camera.disabled);
+}
+
+bool
 camera_init(void)
 {
 	if (Camera.disabled) {
@@ -92,7 +98,7 @@ camera_retrieve(void)
 	frame = cvRetrieveFrame(Camera.capture, 0);
 
 	if (frame == NULL) {
-		warn("failed to read from camera\n");
+		warn("camera_retrieve(): failed to read from camera\n");
 		bgr = NULL;
 	} else {
 		/*
@@ -119,6 +125,12 @@ camera_fini(void)
 void
 camera_disable(void)
 {
+}
+
+bool
+camera_disabled(void)
+{
+	return (true);
 }
 
 bool

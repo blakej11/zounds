@@ -126,7 +126,12 @@ camdelta_step(cl_mem newdelta)
 	bgr = camera_retrieve();
 	t[2] = gethrtime();
 	if (grabbed == false || bgr == NULL) {
-		warn("camdelta_step(): failed to grab an image\n");
+		if (grabbed == false) {
+			warn("camdelta_step(): failed to grab an image\n");
+		} else {
+			warn("camdelta_step(): failed to retrieve an image\n");
+		}
+
 		return;
 	}
 
@@ -180,10 +185,10 @@ static void
 camdelta_preinit(void)
 {
 	/*
-	 * Do this in preinit(), so other things in the init() stage can
-	 * determine whether the camera is in use.
+	 * Do this in preinit(), so other init() operations can take actions
+	 * that depend on whether the camera is in use.
 	 */
-	if (!camera_init()) {
+	if (camera_disabled() || !camera_init()) {
 		Camdelta.disabled = true;
 	} else {
 		Camdelta.disabled = false;
@@ -193,16 +198,7 @@ camdelta_preinit(void)
 static void
 camdelta_init(void)
 {
-	if (Camdelta.disabled) {
-		Camdelta.camwidth = 0;
-		Camdelta.camheight = 0;
-		for (int nd = 0; nd < NDATA; nd++) {
-			Camdelta.camera[nd] = NULL;
-		}
-
-		Camdelta.reduced_bufedge = 0;
-		Camdelta.reduced_cpu = NULL;
-	} else {
+	if (!Camdelta.disabled) {
 		const size_t	camwidth = camera_width();
 		const size_t	camheight = camera_height();
 		const size_t	camsize =
@@ -221,6 +217,15 @@ camdelta_init(void)
 		Camdelta.rolling_delta_i = 1.0;
 
 		kernel_create(&Camdelta.delta_kernel, "camera_delta");
+	} else {
+		Camdelta.camwidth = 0;
+		Camdelta.camheight = 0;
+		for (int nd = 0; nd < NDATA; nd++) {
+			Camdelta.camera[nd] = NULL;
+		}
+
+		Camdelta.reduced_bufedge = 0;
+		Camdelta.reduced_cpu = NULL;
 	}
 }
 
@@ -237,7 +242,13 @@ camdelta_fini(void)
 
 		Camdelta.reduced_bufedge = 0;
 		mem_free((void **)&Camdelta.reduced_cpu);
+	}
+}
 
+static void
+camdelta_postfini(void)
+{
+	if (!Camdelta.disabled) {
 		camera_fini();
 	}
 }
@@ -245,5 +256,6 @@ camdelta_fini(void)
 const module_ops_t	camdelta_ops = {
 	camdelta_preinit,
 	camdelta_init,
-	camdelta_fini
+	camdelta_fini,
+	camdelta_postfini
 };

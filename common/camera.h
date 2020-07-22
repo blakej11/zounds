@@ -8,6 +8,7 @@
 #include "types.h"
 
 extern void	camera_disable(void);
+extern bool	camera_disabled(void);
 extern bool	camera_init(void);
 extern bool	camera_initialized(void);
 extern size_t	camera_width(void);
