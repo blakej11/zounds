@@ -199,10 +199,10 @@ static void
 camdelta_init(void)
 {
 	if (!Camdelta.disabled) {
-		const size_t	camwidth = camera_width();
-		const size_t	camheight = camera_height();
+		const pix_t	camwidth = camera_width();
+		const pix_t	camheight = camera_height();
 		const size_t	camsize =
-		    camwidth * camheight * 3 * sizeof (char);
+		    (size_t)camwidth * camheight * 3 * sizeof (char);
 
 		Camdelta.camwidth = camwidth;
 		Camdelta.camheight = camheight;

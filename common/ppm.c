@@ -33,7 +33,7 @@ ppm_read_sizes(const char *filename, pix_t *widthp, pix_t *heightp)
 	}
 	(void) read(fd, header, sizeof(header));
 	if (sscanf(header, "%*3s %u %u", &width, &height) != 2) {
-		warn("Failed to parse \"%s\"\n", header);
+		verbose(DB_IMAGE, "Failed to parse \"%s\"\n", header);
 		close(fd);
 		return (false);
 	} else {

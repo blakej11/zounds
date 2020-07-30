@@ -115,7 +115,14 @@ main(int argc, char **argv)
 			break;
 		case 'f':
 			if (ppm_read_sizes(optarg, &w, &h)) {
+				verbose(DB_IMAGE,
+				    "Using %s as starting image\n", optarg);
 				image_datafile(optarg);
+				go_fullscreen = false;
+			} else if (camera_try_file(optarg, &w, &h)) {
+				verbose(DB_CAMERA,
+				    "Using %s as input image stream\n", optarg);
+				camera_set_filename(optarg);
 				go_fullscreen = false;
 			}
 			break;

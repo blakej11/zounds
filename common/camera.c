@@ -25,7 +25,8 @@
 static struct {
 	bool		disabled;
 	CvCapture	*capture;
-	size_t		width, height;
+	pix_t		width, height;
+	const char	*filename;
 } Camera;
 
 void
@@ -40,6 +41,41 @@ camera_disabled(void)
 	return (Camera.disabled);
 }
 
+/* Is this a file that OpenCV can use? */
+bool
+camera_try_file(const char *filename, pix_t *w, pix_t *h)
+{
+	CvCapture	*capture;
+
+	capture = cvCreateFileCapture(filename);
+	if (capture == NULL) {
+		verbose(DB_CAMERA, "camera_try_file(): OpenCV couldn't "
+		    "identify \"%s\" as a video file\n", filename);
+		return (false);
+
+	} else if ((int)cvGetCaptureProperty(capture,
+	    CV_CAP_PROP_FRAME_COUNT) == 0) {
+		verbose(DB_CAMERA, "camera_try_file(): OpenCV thinks "
+		    "\"%s\" has no frames\n", filename);
+		return (false);
+
+	} else {
+		*w = (pix_t)cvGetCaptureProperty(capture,
+		    CV_CAP_PROP_FRAME_WIDTH);
+		*h = (pix_t)cvGetCaptureProperty(capture,
+		    CV_CAP_PROP_FRAME_HEIGHT);
+
+		cvReleaseCapture(&capture);
+		return (true);
+	}
+}
+
+void
+camera_set_filename(const char *filename)
+{
+	Camera.filename = filename;
+}
+
 bool
 camera_init(void)
 {
@@ -47,16 +83,22 @@ camera_init(void)
 		return (false);		// and don't print a warning
 	}
 
-	Camera.capture = cvCreateCameraCapture(CV_CAP_ANY);
+	if (Camera.filename != NULL) {
+		Camera.capture = cvCreateFileCapture(Camera.filename);
+		verbose(DB_CAMERA, "Using file \"%s\" as camera input\n",
+		    Camera.filename);
+	} else {
+		Camera.capture = cvCreateCameraCapture(CV_CAP_ANY);
+	}
 	if (Camera.capture == NULL) {
 		warn("camera_init(): failed to initialize camera\n");
 		camera_disable();
 		return (false);
 	}
 
-	Camera.width  = (size_t)cvGetCaptureProperty(Camera.capture,
+	Camera.width  = (pix_t)cvGetCaptureProperty(Camera.capture,
 	    CV_CAP_PROP_FRAME_WIDTH);
-	Camera.height = (size_t)cvGetCaptureProperty(Camera.capture,
+	Camera.height = (pix_t)cvGetCaptureProperty(Camera.capture,
 	    CV_CAP_PROP_FRAME_HEIGHT);
 
 	return (true);
@@ -68,14 +110,14 @@ camera_initialized(void)
 	return (Camera.capture != NULL);
 }
 
-size_t
+pix_t
 camera_width(void)
 {
 	assert(Camera.width != 0);
 	return (Camera.width);
 }
 
-size_t
+pix_t
 camera_height(void)
 {
 	assert(Camera.height != 0);
@@ -98,6 +140,25 @@ camera_retrieve(void)
 	frame = cvRetrieveFrame(Camera.capture, 0);
 
 	if (frame == NULL) {
+		if (Camera.filename != NULL) {
+			const int curframe =
+			    (int)cvGetCaptureProperty(Camera.capture,
+			    CV_CAP_PROP_POS_FRAMES);
+			const int frames =
+			    (int)cvGetCaptureProperty(Camera.capture,
+			    CV_CAP_PROP_FRAME_COUNT);
+			if (curframe > frames) {
+				/*
+				 * It's a bit sketchy to have a bare call to
+				 * exit() in the middle of "library" code,
+				 * but at least with the way the code is
+				 * structured right now it's doing exactly the
+				 * right thing.
+				 */
+				exit(0);
+			}
+		}
+
 		warn("camera_retrieve(): failed to read from camera\n");
 		bgr = NULL;
 	} else {
@@ -134,6 +195,17 @@ camera_disabled(void)
 }
 
 bool
+camera_try_file(const char *filename, pix_t *w, pix_t *h)
+{
+	return (false);
+}
+
+void
+camera_set_filename(const char *filename)
+{
+}
+
+bool
 camera_init(void)
 {
 	return (false);
@@ -145,14 +217,14 @@ camera_initialized(void)
 	return (false);
 }
 
-size_t
+pix_t
 camera_width(void)
 {
 	assert(0 && "camera is not supported");
 	return (0);
 }
 
-size_t
+pix_t
 camera_height(void)
 {
 	assert(0 && "camera is not supported");
