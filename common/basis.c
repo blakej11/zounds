@@ -38,6 +38,9 @@
  *   impact on the perceived "motion" than others do.  For example, rotating
  *   a vector through 180 degrees of longitude covers much more ground at the
  *   equator than at 85 degrees North.
+ *
+ * https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation may be of
+ * interest for future work here.
  */
 
 #include <math.h>
